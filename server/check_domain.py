@@ -8,8 +8,11 @@ Example: python check_domain.py google.com github.com example.com
 import asyncio
 import sys
 import argparse
+import os
+from typing import List, Optional
 from get_cert_expiration import get_cert_expiration_many
 from schema import CertExpirationHandler, CertExpirationResult
+from email_handler import EmailHandler
 
 
 async def check_domains(domains: list[str], handler: CertExpirationHandler) -> None:
@@ -37,6 +40,56 @@ class ConsoleHandler(CertExpirationHandler):
         print("")
 
 
+def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
+    """Parse comma-separated warning days string into a list of integers."""
+    if not warning_days_str:
+        return [14, 7, 3, 0]  # Default warning days
+    
+    try:
+        days = [int(day.strip()) for day in warning_days_str.split(',')]
+        return sorted(days, reverse=True)  # Sort in descending order
+    except ValueError as e:
+        raise ValueError(f"Invalid warning days format '{warning_days_str}': {e}")
+
+
+def create_handler_from_env() -> CertExpirationHandler:
+    """Create the appropriate handler based on environment variables."""
+    mode = os.getenv('CHECK_DOMAIN_MODE', 'console').lower()
+    
+    if mode == 'console':
+        return ConsoleHandler()
+    
+    elif mode in ['email', 'email_dry_run']:
+        # Get email configuration
+        email_from = os.getenv('CHECK_DOMAIN_EMAIL_FROM')
+        email_to = os.getenv('CHECK_DOMAIN_EMAIL_TO')
+        warning_days_str = os.getenv('CHECK_DOMAIN_WARNING_DAYS')
+        
+        # Validate required email parameters
+        if not email_from:
+            raise ValueError("CHECK_DOMAIN_EMAIL_FROM environment variable is required for email mode")
+        if not email_to:
+            raise ValueError("CHECK_DOMAIN_EMAIL_TO environment variable is required for email mode")
+        
+        # Parse warning days
+        try:
+            warning_days = parse_warning_days(warning_days_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid warning days configuration: {e}")
+        
+        # Create email handler
+        dry_run = (mode == 'email_dry_run')
+        return EmailHandler(
+            sender_email=email_from,
+            recipient_email=email_to,
+            warning_days=warning_days,
+            dry_run=dry_run
+        )
+    
+    else:
+        raise ValueError(f"Invalid CHECK_DOMAIN_MODE '{mode}'. Must be 'console', 'email', or 'email_dry_run'")
+
+
 def eprint(message: str) -> None:
     print(message, file=sys.stderr)
 
@@ -46,10 +99,21 @@ def main() -> None:
         description="Check SSL certificate expiration for multiple domains concurrently",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Environment Variables:
+  CHECK_DOMAIN_MODE        Output mode: 'console', 'email', or 'email_dry_run' (default: console)
+  CHECK_DOMAIN_EMAIL_FROM  Sender email address (required for email modes)
+  CHECK_DOMAIN_EMAIL_TO    Recipient email address (required for email modes)
+  CHECK_DOMAIN_WARNING_DAYS Comma-separated warning days (e.g., '7,14,30', default: '14,7,3,0')
+
 Examples:
-  python check_domain.py google.com
-  python check_domain.py google.com github.com example.com
-  python check_domain.py subdomain.example.com another-domain.com
+  # Console mode (default)
+  python check_domain.py google.com github.com
+  
+  # Email mode with environment variables
+  CHECK_DOMAIN_MODE=email CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com python check_domain.py google.com
+  
+  # Email dry-run mode with custom warning days
+  CHECK_DOMAIN_MODE=email_dry_run CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com CHECK_DOMAIN_WARNING_DAYS=30,14,7,0 python check_domain.py google.com
         """
     )
     
@@ -76,9 +140,16 @@ Examples:
             sys.exit(2)
         domains.append(domain)
     
+    # Create handler based on environment variables
+    try:
+        handler = create_handler_from_env()
+    except ValueError as e:
+        eprint(f"Configuration error: {e}")
+        sys.exit(2)
+    
     # Run the async check
     try:
-        asyncio.run(check_domains(domains, ConsoleHandler()))
+        asyncio.run(check_domains(domains, handler))
     except KeyboardInterrupt:
         eprint("\nCheck cancelled by user")
         sys.exit(3)

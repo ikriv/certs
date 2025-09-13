@@ -64,6 +64,7 @@ class EmailHandler(CertExpirationHandler):
             self.results_to_alert.append(result)
     
     def _send_email(self) -> None:
+        print("send email")
         """Send the assembled email."""
         if not self.results_to_alert:
             return

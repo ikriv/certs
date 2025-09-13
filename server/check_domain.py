@@ -73,7 +73,7 @@ def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
         raise ValueError(f"Invalid warning days format '{warning_days_str}': {e}")
 
 
-def create_handler_from_env() -> CertExpirationHandler:
+def create_handler_from_env(force_dry_run: bool = False) -> CertExpirationHandler:
     """Create the appropriate handler based on environment variables."""
     mode = os.getenv('CHECK_DOMAIN_MODE', 'console').lower()
     
@@ -99,7 +99,8 @@ def create_handler_from_env() -> CertExpirationHandler:
             raise ValueError(f"Invalid warning days configuration: {e}")
         
         # Create email handler
-        dry_run = (mode == 'email_dry_run')
+        # Force dry_run if --dry-run flag is used, otherwise use mode setting
+        dry_run = force_dry_run or (mode == 'email_dry_run')
         return EmailHandler(
             sender_email=email_from,
             recipient_email=email_to,
@@ -138,6 +139,9 @@ Examples:
   
   # Using configuration file
   python check_domain.py --config config.env google.com github.com
+  
+  # Force dry-run mode for email output
+  CHECK_DOMAIN_MODE=email CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com python check_domain.py --dry-run google.com
         """
     )
     
@@ -151,6 +155,12 @@ Examples:
         '--config',
         type=str,
         help='Path to .env configuration file with environment variables'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Force dry-run mode for email output (overrides CHECK_DOMAIN_MODE=email)'
     )
     
     parser.add_argument(
@@ -180,7 +190,7 @@ Examples:
     
     # Create handler based on environment variables
     try:
-        handler = create_handler_from_env()
+        handler = create_handler_from_env(force_dry_run=args.dry_run)
     except ValueError as e:
         eprint(f"Configuration error: {e}")
         sys.exit(2)

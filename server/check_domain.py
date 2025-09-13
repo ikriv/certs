@@ -127,6 +127,12 @@ Environment Variables:
   CHECK_DOMAIN_EMAIL_TO    Recipient email address (required for email modes)
   CHECK_DOMAIN_WARNING_DAYS Comma-separated warning days (e.g., '7,14,30', default: '14,7,3,0')
 
+Exit codes:
+    0: Success. This includes cases when some certificates are expired
+    400: Invalid parameters or config
+    408: Check cancelled by user
+    500: Unexpected error
+
 Examples:
   # Console mode (default)
   python check_domain.py google.com github.com
@@ -177,7 +183,7 @@ Examples:
             load_env_file(args.config)
         except (FileNotFoundError, ValueError) as e:
             eprint(f"Config file error: {e}")
-            sys.exit(2)
+            sys.exit(400)
     
     # Validate domain format (basic check)
     domains = []
@@ -185,7 +191,7 @@ Examples:
         domain = domain.strip().lower()
         if not domain or '.' not in domain:
             eprint(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
-            sys.exit(2)
+            sys.exit(400)
         domains.append(domain)
     
     # Create handler based on environment variables
@@ -193,17 +199,17 @@ Examples:
         handler = create_handler_from_env(force_dry_run=args.dry_run)
     except ValueError as e:
         eprint(f"Configuration error: {e}")
-        sys.exit(2)
+        sys.exit(400)
     
     # Run the async check
     try:
         asyncio.run(check_domains(domains, handler))
     except KeyboardInterrupt:
         eprint("\nCheck cancelled by user")
-        sys.exit(3)
+        sys.exit(408)
     except Exception as e:
         eprint(f"Unexpected error: {e}")
-        sys.exit(4)
+        sys.exit(500)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import sys
 import argparse
 import os
 from typing import List, Optional
+from dotenv import load_dotenv
 from get_cert_expiration import get_cert_expiration_many
 from schema import CertExpirationHandler, CertExpirationResult
 from email_handler import EmailHandler
@@ -38,6 +39,26 @@ class ConsoleHandler(CertExpirationHandler):
             else:
                 print("STATUS: VALID")
         print("")
+
+
+def load_env_file(config_file: str) -> None:
+    """
+    Load environment variables from a .env file using python-dotenv.
+    
+    Args:
+        config_file: Path to the .env file
+        
+    Raises:
+        FileNotFoundError: If the config file doesn't exist
+        ValueError: If there's an error loading the file
+    """
+    try:
+        # Load .env file, override=False means don't override existing env vars
+        success = load_dotenv(config_file, override=False)
+        if not success:
+            raise FileNotFoundError(f"Config file not found: {config_file}")
+    except Exception as e:
+        raise ValueError(f"Error loading config file '{config_file}': {e}")
 
 
 def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
@@ -114,6 +135,9 @@ Examples:
   
   # Email dry-run mode with custom warning days
   CHECK_DOMAIN_MODE=email_dry_run CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com CHECK_DOMAIN_WARNING_DAYS=30,14,7,0 python check_domain.py google.com
+  
+  # Using configuration file
+  python check_domain.py --config config.env google.com github.com
         """
     )
     
@@ -124,12 +148,26 @@ Examples:
     )
     
     parser.add_argument(
+        '--config',
+        type=str,
+        help='Path to .env configuration file with environment variables'
+    )
+    
+    parser.add_argument(
         '--version',
         action='version',
         version='SSL Certificate Checker 2.0'
     )
     
     args = parser.parse_args()
+    
+    # Load configuration file if specified
+    if args.config:
+        try:
+            load_env_file(args.config)
+        except (FileNotFoundError, ValueError) as e:
+            eprint(f"Config file error: {e}")
+            sys.exit(2)
     
     # Validate domain format (basic check)
     domains = []

@@ -30,11 +30,9 @@ class EmailHandler(CertExpirationHandler):
         self.results_to_alert: List[CertExpirationResult] = []
         self.exception_occurred = False
     
-    def __enter__(self) -> 'EmailHandler':
-        """Initialize the handler."""
+    def __enter__(self) -> None:
         self.results_to_alert = []
         self.exception_occurred = False
-        return self
     
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Send email on exit unless an exception occurred."""
@@ -64,7 +62,6 @@ class EmailHandler(CertExpirationHandler):
             self.results_to_alert.append(result)
     
     def _send_email(self) -> None:
-        print("send email")
         """Send the assembled email."""
         if not self.results_to_alert:
             return
@@ -82,6 +79,9 @@ class EmailHandler(CertExpirationHandler):
         
         for result in self.results_to_alert:
             data = result.data
+            if not data:
+                continue
+            
             days_remaining = data.days_remaining
             
             if data.is_expired or days_remaining <= 0:

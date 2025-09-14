@@ -26,6 +26,8 @@ class ConsoleHandler(CertExpirationHandler):
         print(result.domain)
         if result.error:
             print(f"ERROR: {result.error}\n")
+        elif result.data is None:
+            print("ERROR: No data returned\n")
         else:
             data = result.data
             print(f"Certificate expires: {data.expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')}")

@@ -6,6 +6,13 @@ from schema import CertExpirationResult
 
 app = Quart(__name__)
 
+# Configure Quart to use compact JSON formatting
+app.json.compact = True
+
+def format_json(data):
+    """Format JSON data compactly without pretty printing."""
+    return json.dumps(data, separators=(',', ':'))
+
 def _result_to_dict(result: CertExpirationResult) -> dict:
     """Convert CertExpirationResult to dictionary for JSON serialization."""
     result_dict = {
@@ -36,7 +43,7 @@ async def _stream_results(domains: list[str]):
     """Stream results as they come using get_cert_expiration_many."""
     async for result in get_cert_expiration_many(domains):
         result_dict = _result_to_dict(result)
-        yield json.dumps(result_dict) + '\n'
+        yield format_json(result_dict) + '\n'
 
 async def _get_all_results(domains: list[str]) -> list[dict]:
     """Get all results and return as a list in the same order as input domains."""

@@ -1,8 +1,7 @@
-import datetime
+import logging
 from typing import List, Optional
 from schema import CertExpirationHandler, CertExpirationResult
 import subprocess
-import sys
 
 
 class EmailHandler(CertExpirationHandler):
@@ -112,13 +111,13 @@ Content-Type: text/plain; charset=utf-8
 """
         
         if self.dry_run:
-            print(f"[DRY RUN] Would send email for {len(self.results_to_alert)} domain(s):")
-            print("------- Email Content -------")
-            print(email_content)
-            print("--------------------------")
+            logging.info(f"[DRY RUN] Would send email for {len(self.results_to_alert)} domain(s):")
+            logging.info("------- Email Content -------")
+            logging.info(email_content)
+            logging.info("--------------------------")
             return
         
-        print(f"Sending email alert for {len(self.results_to_alert)} domain(s)")
+        logging.info(f"Sending email alert for {len(self.results_to_alert)} domain(s)")
         
         try:
             # Use subprocess to pipe the email content to sendmail
@@ -128,7 +127,7 @@ Content-Type: text/plain; charset=utf-8
             if process.returncode != 0:
                 raise Exception(f"Sendmail returned non-zero exit code: {process.returncode}")
                 
-            print(f"Alert email sent successfully for {len(self.results_to_alert)} domain(s)")
+            logging.info(f"Alert email sent successfully for {len(self.results_to_alert)} domain(s)")
         except Exception as e:
-            print(f"Failed to send email alert: {str(e)}", file=sys.stderr)
+            logging.error(f"Failed to send email alert: {str(e)}")
             raise

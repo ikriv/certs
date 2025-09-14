@@ -9,11 +9,39 @@ import asyncio
 import sys
 import argparse
 import os
+import logging
 from typing import List, Optional
 from dotenv import load_dotenv
 from get_cert_expiration import get_cert_expiration_many
 from schema import CertExpirationHandler, CertExpirationResult
 from email_handler import EmailHandler
+
+
+def configure_logging() -> None:
+    """Configure logging to output info to stdout and errors to stderr."""
+    # Create custom formatter
+    formatter = logging.Formatter('%(message)s')
+    
+    # Create stdout handler for info messages only
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.setFormatter(formatter)
+    # Add filter to only allow INFO level messages
+    stdout_handler.addFilter(lambda record: record.levelno == logging.INFO)
+    
+    # Create stderr handler for error messages only
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.ERROR)
+    stderr_handler.setFormatter(formatter)
+    # Add filter to only allow ERROR level messages
+    stderr_handler.addFilter(lambda record: record.levelno == logging.ERROR)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.handlers.clear()  # Remove any existing handlers
+    root_logger.addHandler(stdout_handler)
+    root_logger.addHandler(stderr_handler)
 
 
 async def check_domains(domains: list[str], handler: CertExpirationHandler) -> None:
@@ -23,24 +51,24 @@ async def check_domains(domains: list[str], handler: CertExpirationHandler) -> N
 
 class ConsoleHandler(CertExpirationHandler):
     async def handleExpirationResul(self, result: CertExpirationResult) -> None:
-        print(result.domain)
+        logging.info(result.domain)
         if result.error:
-            print(f"ERROR: {result.error}\n")
+            logging.info(f"ERROR: {result.error}")
         elif result.data is None:
-            print("ERROR: No data returned\n")
+            logging.info("ERROR: No data returned")
         else:
             data = result.data
-            print(f"Certificate expires: {data.expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-            print(f"Time Remaining: {data.time_remaining_str}")
+            logging.info(f"Certificate expires: {data.expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            logging.info(f"Time Remaining: {data.time_remaining_str}")
             
             # Add status indicator using the pre-calculated days_remaining
             if data.is_expired:
-                print("STATUS: EXPIRED")
+                logging.info("STATUS: EXPIRED")
             elif data.days_remaining < 30:
-                print("STATUS: EXPIRING SOON (less than 30 days)")
+                logging.info("STATUS: EXPIRING SOON (less than 30 days)")
             else:
-                print("STATUS: VALID")
-        print("")
+                logging.info("STATUS: VALID")
+        logging.info("")
 
 
 def load_env_file(config_file: str) -> None:
@@ -77,7 +105,11 @@ def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
 
 def create_handler_from_env(force_dry_run: bool = False) -> CertExpirationHandler:
     """Create the appropriate handler based on environment variables."""
-    mode = os.getenv('CHECK_DOMAIN_MODE', 'console').lower()
+    mode = os.getenv('CHECK_DOMAIN_MODE', 'console').strip().lower()
+    
+    # Handle empty or whitespace-only environment variable
+    if not mode:
+        mode = 'console'
     
     if mode == 'console':
         return ConsoleHandler()
@@ -114,11 +146,12 @@ def create_handler_from_env(force_dry_run: bool = False) -> CertExpirationHandle
         raise ValueError(f"Invalid CHECK_DOMAIN_MODE '{mode}'. Must be 'console', 'email', or 'email_dry_run'")
 
 
-def eprint(message: str) -> None:
-    print(message, file=sys.stderr)
 
 def main() -> None:
     """Main function to handle command line arguments and run the check."""
+    # Configure logging first
+    configure_logging()
+    
     parser = argparse.ArgumentParser(
         description="Check SSL certificate expiration for multiple domains concurrently",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -184,7 +217,7 @@ Examples:
         try:
             load_env_file(args.config)
         except (FileNotFoundError, ValueError) as e:
-            eprint(f"Config file error: {e}")
+            logging.error(f"Config file error: {e}")
             sys.exit(400)
     
     # Validate domain format (basic check)
@@ -192,7 +225,7 @@ Examples:
     for domain in args.domains:
         domain = domain.strip().lower()
         if not domain or '.' not in domain:
-            eprint(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
+            logging.error(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
             sys.exit(400)
         domains.append(domain)
     
@@ -200,17 +233,17 @@ Examples:
     try:
         handler = create_handler_from_env(force_dry_run=args.dry_run)
     except ValueError as e:
-        eprint(f"Configuration error: {e}")
+        logging.error(f"Configuration error: {e}")
         sys.exit(400)
     
     # Run the async check
     try:
         asyncio.run(check_domains(domains, handler))
     except KeyboardInterrupt:
-        eprint("\nCheck cancelled by user")
+        logging.error("\nCheck cancelled by user")
         sys.exit(408)
     except Exception as e:
-        eprint(f"Unexpected error: {e}")
+        logging.error(f"Unexpected error: {e}")
         sys.exit(500)
 
 

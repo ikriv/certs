@@ -15,7 +15,7 @@ def format_json(data):
 
 def _result_to_dict(result: CertExpirationResult) -> dict:
     """Convert CertExpirationResult to dictionary for JSON serialization."""
-    result_dict = {
+    result_dict : dict = {
         'domain': result.domain,
         'data': None,
         'error': result.error

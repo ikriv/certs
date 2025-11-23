@@ -83,86 +83,87 @@ export default function CertificateChecker() {
 
     return (
         <div className="max-w-4xl mx-auto p-6">
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">SSL Certificate Checker</h1>
+            </div>
+
             {loading && certData.length === 0 ? (
-                <div className="flex items-center justify-center min-h-screen -mt-20">
+                <div className="text-center">
                     <p className="text-gray-600 text-lg">checking...</p>
                 </div>
             ) : (
                 <>
-                    <div className="text-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">SSL Certificate Checker</h1>
-                    </div>
-
-                    <div className="mb-4 flex justify-end">
-                        <button
-                            className="px-4 py-2 bg-blue-500 text-white font-medium rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            onClick={fetchCertificates}
-                            disabled={loading}
-                        >
-                            {loading ? 'Refreshing...' : 'REFRESH'}
-                        </button>
-                    </div>
-
                     {error && (
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                             {error}
                         </div>
                     )}
 
-                    {certData.length > 0 ? (
-                        <div className="overflow-x-auto p-6">
-                            <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm">
-                                <thead className="bg-gray-200">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
-                                            Domain
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
-                                            Expiry Date
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
-                                            Time Remaining
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
-                                            Status
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {certData.map((cert, index) => (
-                                        <tr key={index} className={cert.error ? "bg-red-50" : cert.is_expired ? "bg-yellow-50" : "hover:bg-gray-100"}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200">
-                                                {cert.domain}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 border-b border-gray-200">
-                                                {cert.expiry_date ? getLocalDateStr(cert.expiry_date) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 border-b border-gray-200">
-                                                {cert.time_remaining || '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm border-b border-gray-200">
-                                                {cert.error ? (
-                                                    <span className="text-red-600 font-semibold">{cert.error}</span>
-                                                ) : cert.is_expired ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                                                        Expired
-                                                    </span>
-                                                ) : cert.days_remaining !== null && cert.days_remaining < 30 ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                                                        Expiring Soon
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                                        Valid
-                                                    </span>
-                                                )}
-                                            </td>
+                    {certData.length > 0 && (
+                        <>
+                            <div className="mb-4 flex justify-end">
+                                <button
+                                    className="px-4 py-2 bg-blue-500 text-white font-medium rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    onClick={fetchCertificates}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Refreshing...' : 'REFRESH'}
+                                </button>
+                            </div>
+                            <div className="overflow-x-auto p-6">
+                                <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm">
+                                    <thead className="bg-gray-200">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+                                                Domain
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+                                                Expiry Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+                                                Time Remaining
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-300">
+                                                Status
+                                            </th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : null}
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {certData.map((cert, index) => (
+                                            <tr key={index} className={cert.error ? "bg-red-50" : cert.is_expired ? "bg-yellow-50" : "hover:bg-gray-100"}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200">
+                                                    {cert.domain}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 border-b border-gray-200">
+                                                    {cert.expiry_date ? getLocalDateStr(cert.expiry_date) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 border-b border-gray-200">
+                                                    {cert.time_remaining || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm border-b border-gray-200">
+                                                    {cert.error ? (
+                                                        <span className="text-red-600 font-semibold">{cert.error}</span>
+                                                    ) : cert.is_expired ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                                            Expired
+                                                        </span>
+                                                    ) : cert.days_remaining !== null && cert.days_remaining < 30 ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                                            Expiring Soon
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                                            Valid
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
                 </>
             )}
         </div>

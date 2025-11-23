@@ -89,7 +89,7 @@ export default function CertificateChecker() {
                 </div>
             ) : (
                 <>
-                    <div className="items-center mb-6">
+                    <div className="text-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-800">SSL Certificate Checker</h1>
                     </div>
 

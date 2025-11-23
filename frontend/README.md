@@ -19,6 +19,13 @@ cd frontend
 npm install
 ```
 
+3. (Optional) Configure domains to check by creating a `.env.local` file:
+```bash
+NEXT_PUBLIC_DOMAINS_TO_CHECK=google.com;microsoft.com;github.com
+```
+
+   Domains should be semicolon-separated. If not set, defaults to `google.com;microsoft.com`.
+
 ## Development
 
 Start the development server:
@@ -44,8 +51,8 @@ npm start
 
 ## Features
 
-- Check SSL certificate expiration for one or more domains
+- Check SSL certificate expiration for configured domains
 - Real-time status indicators (Valid, Expiring Soon, Expired)
-- Input field to specify domains to check
+- Domains configurable via `NEXT_PUBLIC_DOMAINS_TO_CHECK` environment variable
 - Responsive table layout with Tailwind CSS
 

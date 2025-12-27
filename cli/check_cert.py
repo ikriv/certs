@@ -4,18 +4,13 @@ Console program to check SSL certificate expiration for multiple domains.
 Usage: python check_cert.py <domain1> [domain2] [domain3] ...
 Example: python check_cert.py google.com github.com example.com
 
-This script has no external dependencies - uses only Python standard library.
+No external dependencies - uses only Python standard library.
 """
 
 import asyncio
 import sys
-import os
 import argparse
-
-# Add parent directory to path to import certcore
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from certcore import get_cert_expiration_many
+from expiration import get_cert_expiration_many
 
 
 def eprint(*args, **kwargs):
@@ -36,7 +31,6 @@ async def check_domains(domains: list[str]) -> None:
             print(f"Certificate expires: {data.expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             print(f"Time Remaining: {data.time_remaining_str}")
             
-            # Add status indicator using the pre-calculated days_remaining
             if data.is_expired:
                 print("STATUS: EXPIRED")
             elif data.days_remaining < 30:
@@ -53,7 +47,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exit codes:
-    0: Success. This includes cases when some certificates are expired
+    0: Success (includes cases when some certificates are expired)
     400: Invalid parameters
     408: Check cancelled by user
     500: Unexpected error
@@ -78,16 +72,15 @@ Examples:
     
     args = parser.parse_args()
     
-    # Validate domain format (basic check)
+    # Validate domain format
     domains = []
     for domain in args.domains:
         domain = domain.strip().lower()
         if not domain or '.' not in domain:
-            eprint(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
+            eprint(f"Error: Invalid domain name '{domain}'")
             sys.exit(400)
         domains.append(domain)
     
-    # Run the async check
     try:
         asyncio.run(check_domains(domains))
     except KeyboardInterrupt:

@@ -6,8 +6,9 @@ WORKDIR /app
 COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy certcore package
-COPY certcore /app/certcore
+# Copy cli modules (schema, expiration)
+COPY cli/schema.py .
+COPY cli/expiration.py .
 
 # Copy application code
 COPY server/app.py .

@@ -9,9 +9,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Mount the frontend build output so Quart can serve it
       - ./frontend/out:/app/static:ro
     environment:
       - PYTHONUNBUFFERED=1
-      - PORT=5000  # Backend serves both frontend and API in Docker
+      - PORT=5000
     restart: unless-stopped

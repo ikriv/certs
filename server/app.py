@@ -1,14 +1,17 @@
 import sys
 import os
 
-# Add parent directory to path to import certcore
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add cli directory to path to import shared modules
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cli")
+)
 
 from quart import Quart, request, jsonify, Response, send_from_directory
 import asyncio
 import json
 from pathlib import Path
-from certcore import get_cert_expiration_no_raise, get_cert_expiration_many, CertExpirationResult
+from expiration import get_cert_expiration_no_raise, get_cert_expiration_many
+from schema import CertExpirationResult
 
 app = Quart(__name__)
 
@@ -16,7 +19,6 @@ app = Quart(__name__)
 app.json.compact = True
 
 
-# Add CORS headers for development (when frontend runs separately)
 @app.after_request
 async def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -25,7 +27,6 @@ async def add_cors_headers(response):
     return response
 
 
-# Handle OPTIONS requests for CORS preflight
 @app.route("/api/<path:path>", methods=["OPTIONS"])
 @app.route("/api/", methods=["OPTIONS"])
 @app.route("/api", methods=["OPTIONS"])
@@ -34,8 +35,6 @@ async def handle_options():
 
 
 # Path to static files (Next.js export)
-# In Docker, files are mounted at /app/static
-# For local development, use relative path
 if Path("/app/static").exists():
     STATIC_DIR = Path("/app/static")
 else:
@@ -51,7 +50,6 @@ def _result_to_dict(result: CertExpirationResult) -> dict:
     """Convert CertExpirationResult to dictionary for JSON serialization."""
     result_dict: dict = {"domain": result.domain, "data": None, "error": result.error}
 
-    # Convert CertExpirationData to dict if present
     if result.data:
         result_dict["data"] = {
             "expiry_date": result.data.expiry_date.isoformat(),
@@ -80,41 +78,17 @@ async def _stream_results(domains: list[str]):
 
 async def _get_all_results(domains: list[str]) -> list[dict]:
     """Get all results and return as a list in the same order as input domains."""
-    # Create tasks for all domains
     tasks = [get_cert_expiration_no_raise(domain) for domain in domains]
-
-    # Wait for all results
     results = await asyncio.gather(*tasks)
-
-    # Convert to dictionaries
     return [_result_to_dict(result) for result in results]
 
 
 @app.route("/api/")
 async def get_cert_status():
-    """
-    Get SSL certificate expiration information for one or more domains.
-
-    Query Parameters:
-        domain (str): Single domain name to check (e.g., 'google.com')
-        domains (str): Comma-separated list of domains (e.g., 'google.com,github.com,example.com')
-
-    HTTP Headers:
-        Accept: If set to 'application/x-ndjson', 'application/jsonl', or 'application/x-jsonlines',
-                and multiple domains are specified, results are streamed as newline-delimited JSON.
-                Otherwise, results are returned as a JSON array.
-
-    Returns:
-        For single domain or non-streaming multiple domains:
-        JSON response containing CertExpirationResult data or array of results.
-
-        For streaming multiple domains:
-        Newline-delimited JSON stream with chunked encoding.
-    """
+    """Get SSL certificate expiration information for one or more domains."""
     domain = request.args.get("domain")
     domains_param = request.args.get("domains")
 
-    # Check if we have any domain parameters
     if not domain and not domains_param:
         return (
             jsonify(
@@ -127,7 +101,6 @@ async def get_cert_status():
             400,
         )
 
-    # Parse domains
     domains = []
     if domain:
         domains.append(domain)
@@ -143,13 +116,11 @@ async def get_cert_status():
             unique_domains.append(d)
     domains = unique_domains
 
-    # Validate all domains
     for domain in domains:
         is_valid, error_msg = _validate_domain(domain)
         if not is_valid:
             return jsonify({"error": error_msg, "domain": domain, "data": None}), 400
 
-    # Check Accept header for streaming
     accept_header = request.headers.get("Accept", "")
     streaming_mime_types = [
         "application/x-ndjson",
@@ -160,18 +131,13 @@ async def get_cert_status():
         mime_type in accept_header for mime_type in streaming_mime_types
     )
 
-    # Handle single domain or non-streaming multiple domains
     if len(domains) == 1 or not should_stream:
         if len(domains) == 1 and domain and not domains_param:
-            # Single domain via ?domain= parameter - return single result
             result = await get_cert_expiration_no_raise(domains[0])
             return jsonify(_result_to_dict(result))
         else:
-            # Multiple domains or single domain via ?domains= parameter - return array
             results = await _get_all_results(domains)
             return jsonify(results)
-
-    # Handle streaming multiple domains
     else:
 
         async def generate():
@@ -199,21 +165,16 @@ async def serve_index():
     return jsonify({"error": "Frontend not built"}), 404
 
 
-# Serve static files from Next.js export
-# This must be last to catch all non-API routes
 @app.route("/<path:path>")
 async def serve_static(path):
-    """Serve static files from Next.js export, with fallback to index.html for client-side routing."""
-    # Don't serve API routes as static files
+    """Serve static files from Next.js export."""
     if path.startswith("api/"):
         return jsonify({"error": "Not found"}), 404
 
-    # Try to serve the requested file
     file_path = STATIC_DIR / path
     if file_path.is_file() and file_path.exists():
         return await send_from_directory(STATIC_DIR, path)
 
-    # For client-side routing, serve index.html for all non-API routes
     if (STATIC_DIR / "index.html").exists():
         return await send_from_directory(STATIC_DIR, "index.html")
 
@@ -221,9 +182,5 @@ async def serve_static(path):
 
 
 if __name__ == "__main__":
-    # This is used when running locally only
-    # Backend runs on port 3000 in dev mode
-    # In Docker, it runs on port 5000 (serves both frontend and backend)
     port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port, debug=True)
-

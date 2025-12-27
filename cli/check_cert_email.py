@@ -4,22 +4,19 @@ Email alert program to check SSL certificate expiration for multiple domains.
 Usage: python check_cert_email.py --config config.ini <domain1> [domain2] ...
 Example: python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
 
-This script has no external dependencies - uses only Python standard library.
+No external dependencies - uses only Python standard library.
 Requires sendmail to be configured on the system for actual email delivery.
 """
 
 import asyncio
 import sys
-import os
 import argparse
 import subprocess
 import configparser
+import os
 from typing import List, Optional
-
-# Add parent directory to path to import certcore
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from certcore import get_cert_expiration_many, CertExpirationResult
+from expiration import get_cert_expiration_many
+from schema import CertExpirationResult
 
 
 def eprint(*args, **kwargs):
@@ -37,25 +34,19 @@ async def check_domains_and_send_alerts(
     """Check domains and send email alerts for expiring certificates."""
     results_to_alert: List[CertExpirationResult] = []
     
-    # Collect results that need alerts
     async for result in get_cert_expiration_many(domains):
         if result.error:
-            # Don't include domains with errors in email alerts
             continue
         
         data = result.data
         if not data:
             continue
         
-        # Use pre-calculated days_remaining from CertExpirationData
         days_remaining = data.days_remaining
-        
-        # Check if this domain should be included in the email
         should_alert = data.is_expired or days_remaining <= 0 or days_remaining in warning_days
         if should_alert:
             results_to_alert.append(result)
     
-    # Send email if there are results to alert
     if results_to_alert:
         _send_email_alert(results_to_alert, sender_email, recipient_email, dry_run)
 
@@ -67,10 +58,8 @@ def _send_email_alert(
     dry_run: bool
 ) -> None:
     """Send email alert for certificate expiration results."""
-    # Create email content
     subject = f"SSL Certificate Alert - {len(results_to_alert)} domain(s)"
     
-    # Build email body
     body_lines = [
         f"SSL Certificate Alert for {len(results_to_alert)} domain(s)",
         "",
@@ -122,7 +111,6 @@ Content-Type: text/plain; charset=utf-8
     print(f"Sending email alert for {len(results_to_alert)} domain(s)")
     
     try:
-        # Use subprocess to pipe the email content to sendmail
         process = subprocess.Popen(['/usr/sbin/sendmail', '-t'], stdin=subprocess.PIPE)
         process.communicate(email_content.encode())
         
@@ -138,11 +126,11 @@ Content-Type: text/plain; charset=utf-8
 def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
     """Parse comma-separated warning days string into a list of integers."""
     if not warning_days_str:
-        return [14, 7, 3, 0]  # Default warning days
+        return [14, 7, 3, 0]
     
     try:
         days = [int(day.strip()) for day in warning_days_str.split(',')]
-        return sorted(days, reverse=True)  # Sort in descending order
+        return sorted(days, reverse=True)
     except ValueError as e:
         raise ValueError(f"Invalid warning days format '{warning_days_str}': {e}")
 
@@ -158,16 +146,6 @@ def load_config(config_path: str) -> tuple[str, str, List[int]]:
         
         [alerts]
         warning_days = 7,14,30
-    
-    Args:
-        config_path: Path to the INI configuration file
-        
-    Returns:
-        Tuple of (email_from, email_to, warning_days)
-        
-    Raises:
-        FileNotFoundError: If config file doesn't exist
-        ValueError: If required fields are missing or invalid
     """
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -175,7 +153,6 @@ def load_config(config_path: str) -> tuple[str, str, List[int]]:
     config = configparser.ConfigParser()
     config.read(config_path)
     
-    # Get email section
     if not config.has_section('email'):
         raise ValueError("Config file missing [email] section")
     
@@ -187,7 +164,6 @@ def load_config(config_path: str) -> tuple[str, str, List[int]]:
     if not email_to:
         raise ValueError("Config file missing 'to' in [email] section")
     
-    # Get warning days (optional)
     warning_days_str = config.get('alerts', 'warning_days', fallback=None)
     warning_days = parse_warning_days(warning_days_str)
     
@@ -209,16 +185,13 @@ Configuration file format (INI):
   warning_days = 7,14,30
 
 Exit codes:
-    0: Success. This includes cases when some certificates are expired
+    0: Success (includes cases when some certificates are expired)
     400: Invalid parameters or config
     408: Check cancelled by user
     500: Unexpected error
 
 Examples:
-  # Using configuration file
   python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
-  
-  # Dry-run mode (print email content instead of sending)
   python check_cert_email.py --config config.ini --dry-run google.com
         """
     )
@@ -226,7 +199,7 @@ Examples:
     parser.add_argument(
         'domains',
         nargs='+',
-        help='One or more domain names to check (e.g., google.com github.com)'
+        help='One or more domain names to check'
     )
     
     parser.add_argument(
@@ -250,23 +223,20 @@ Examples:
     
     args = parser.parse_args()
     
-    # Load configuration file
     try:
         email_from, email_to, warning_days = load_config(args.config)
     except (FileNotFoundError, ValueError) as e:
         eprint(f"Config error: {e}")
         sys.exit(400)
     
-    # Validate domain format (basic check)
     domains = []
     for domain in args.domains:
         domain = domain.strip().lower()
         if not domain or '.' not in domain:
-            eprint(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
+            eprint(f"Error: Invalid domain name '{domain}'")
             sys.exit(400)
         domains.append(domain)
     
-    # Run the async check and send alerts
     try:
         asyncio.run(check_domains_and_send_alerts(domains, email_from, email_to, warning_days, args.dry_run))
     except KeyboardInterrupt:

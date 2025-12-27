@@ -1,96 +1,119 @@
 # SSL Certificate Checker
 
-A full-stack application for checking SSL certificate expiration information. Built with Next.js frontend and Quart (Python) backend, containerized with Docker.
+## Motivation
 
-## Project Structure
+[Let's Encrypt is ending support for expiration notification emails](https://letsencrypt.org/2025/01/22/ending-expiration-emails) on June 4, 2025. This project provides:
+- A command-line tool to check certificate expiration
+- An email alert script for cron-based monitoring  
+- A web dashboard for visual monitoring
 
-```
-certs_new/
-├── server/
-│   ├── core/                    # Core library + CLI scripts (zero deps)
-│   │   ├── schema.py            # Data classes
-│   │   ├── expiration.py        # Certificate checking logic
-│   │   ├── check_cert.py        # Console checker
-│   │   ├── check_cert_email.py  # Email alert for cron
-│   │   └── config.example.ini   # Example config file
-│   ├── app.py                   # Web server (requires quart)
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/                    # Next.js frontend
-│   ├── src/
-│   ├── out/                     # Static export (generated)
-│   └── package.json
-│
-├── docker-compose.yml
-└── README.md
-```
+## Quick Start: Manual Check
 
-## Standalone Scripts (Zero Dependencies)
-
-The scripts in `server/core/` require only Python 3.11+ standard library. Run from the `core/` directory:
-
-### Console Script
+Check certificate expiration from the command line (no dependencies required):
 
 ```bash
 cd server/core
 python check_cert.py google.com github.com example.com
 ```
 
-### Email Alert Script (for cron)
+## Cron Setup: Email Alerts
+
+### 1. Create Configuration File
 
 ```bash
-cd server/core
-
-# Create config file from example
-cp config.example.ini /etc/cert_alert.ini
-
-# Run the script
-python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
-
-# Dry run (print email instead of sending)
-python check_cert_email.py --config /etc/cert_alert.ini --dry-run google.com
+cp server/core/config.example.ini /etc/ssl-cert-alert.ini
 ```
 
-**Configuration file format (INI):**
+Edit `/etc/ssl-cert-alert.ini`:
 
 ```ini
 [email]
-from = alerts@company.com
-to = admin@company.com
+from = alerts@yourdomain.com
+to = admin@yourdomain.com
 
 [alerts]
-warning_days = 7,14,30
+# Send alerts when certificate expires in these many days
+warning_days = 30,14,7,1
 ```
 
-**Cron example:**
+### 2. Test the Script
 
 ```bash
-0 8 * * * cd /path/to/server/core && python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
+cd /path/to/server/core
+python check_cert_email.py --config /etc/ssl-cert-alert.ini --dry-run yourdomain.com
 ```
 
-## Quick Start (Web Application)
-
-### 1. Build the Frontend
+### 3. Add to Cron
 
 ```bash
-cd frontend
-npm install
-npm run build
-cd ..
+crontab -e
 ```
 
-### 2. Run with Docker Compose
+Add:
+
+```cron
+# Check SSL certificates daily at 8 AM
+0 8 * * * cd /path/to/server/core && python check_cert_email.py --config /etc/ssl-cert-alert.ini yourdomain.com anotherdomain.com
+```
+
+**Note:** Requires `sendmail` configured on the system.
+
+## Web Dashboard Deployment
+
+The web dashboard runs as a Docker container. Apache or Nginx acts as a reverse proxy, forwarding requests to the container.
+
+### 1. Start the Docker Container
 
 ```bash
-docker-compose up --build
+# Build frontend first
+cd frontend && npm install && npm run build && cd ..
+
+# Start the server
+docker-compose up -d
 ```
 
-The application will be available at `http://localhost:5000`.
+The container runs on port 5000.
 
-## Development
+### 2. Configure Reverse Proxy
 
-### Backend (Quart Server)
+Add to your existing site configuration to serve the dashboard at `/certs/`:
+
+#### Apache
+
+Enable required modules:
+
+```bash
+a2enmod proxy proxy_http
+```
+
+Add to your Apache virtual host:
+
+```apache
+# SSL Certificate Checker at /certs/
+ProxyPass /certs/ http://127.0.0.1:5000/
+ProxyPassReverse /certs/ http://127.0.0.1:5000/
+```
+
+#### Nginx
+
+Add to your server block:
+
+```nginx
+# SSL Certificate Checker at /certs/
+location /certs/ {
+    proxy_pass http://127.0.0.1:5000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+The dashboard will be available at `https://yourdomain.com/certs/`.
+
+## Development Setup
+
+### Backend
 
 ```bash
 cd server
@@ -100,7 +123,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Frontend (Next.js Dev Server)
+Backend runs on `http://localhost:3000`.
+
+### Frontend
 
 ```bash
 cd frontend
@@ -108,27 +133,19 @@ npm install
 npm run dev
 ```
 
-**Ports:**
-- Frontend: 5000 (dev server)
-- Backend: 3000 (dev mode)
-- Docker: 5000 (serves both)
+Frontend runs on `http://localhost:5000` and proxies API requests to the backend.
 
-## API Usage
+**Note:** Both servers must be running for the web dashboard to work in development.
+
+## API
 
 ```bash
 # Single domain
 curl "http://localhost:5000/api/?domain=google.com"
 
-# Multiple domains
+# Multiple domains  
 curl "http://localhost:5000/api/?domains=google.com,github.com"
 
-# Streaming (NDJSON)
+# Streaming (for many domains)
 curl -H "Accept: application/x-ndjson" "http://localhost:5000/api/?domains=google.com,github.com"
 ```
-
-## Dependencies
-
-| Component | External Dependencies |
-|-----------|----------------------|
-| `server/core/` | None (stdlib only) |
-| `server/app.py` | quart |

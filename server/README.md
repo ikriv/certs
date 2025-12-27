@@ -45,7 +45,9 @@ Start the server locally:
 python check_cert_server.py
 ```
 
-The server will start on `http://0.0.0.0:5000` (accessible at `http://localhost:5000`).
+The server will start on `http://0.0.0.0:3000` (accessible at `http://localhost:3000`) in development mode.
+
+**Note**: In Docker mode, the server runs on port 5000 and serves both the frontend and API. In development mode, it runs on port 3000 and only serves the API (frontend runs separately on port 5000).
 
 ## API Endpoints
 
@@ -55,16 +57,21 @@ The server will start on `http://0.0.0.0:5000` (accessible at `http://localhost:
 Check SSL certificate expiration for one or more domains.
 
 **Examples:**
-- Single domain: `http://localhost:5000/?domain=google.com`
-- Multiple domains: `http://localhost:5000/?domains=google.com,github.com,example.com`
+- Single domain: `http://localhost:3000/api/?domain=google.com` (dev mode)
+- Multiple domains: `http://localhost:3000/api/?domains=google.com,github.com,example.com` (dev mode)
+- Docker mode: `http://localhost:5000/api/?domain=google.com`
 
 **Streaming Response:**
 Set the `Accept` header to `application/x-ndjson` for streaming results when checking multiple domains.
 
 ### Health Check
-`GET /status`
+`GET /api/status`
 
 Returns server status information.
+
+**Examples:**
+- Dev mode: `http://localhost:3000/api/status`
+- Docker mode: `http://localhost:5000/api/status`
 
 ## Development
 

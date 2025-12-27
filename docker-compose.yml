@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: certs-quart
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount the frontend build output so Quart can serve it
+      - ./frontend/out:/app/static:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=5000  # Backend serves both frontend and API in Docker
+    restart: unless-stopped
+

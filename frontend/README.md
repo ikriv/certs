@@ -5,7 +5,7 @@ Next.js frontend application for checking SSL certificate expiration.
 ## Prerequisites
 
 - Node.js 18+ and npm
-- Backend server running on `http://localhost:5000` (see `../server/README.md`)
+- Backend server running on `http://localhost:3000` (see `../server/README.md`)
 
 ## Setup
 
@@ -33,9 +33,9 @@ Start the development server:
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`.
+The frontend will be available at `http://localhost:5000`.
 
-The Next.js dev server is configured to proxy API requests from `/api/*` to `http://localhost:5000/*`, so make sure the Quart backend is running.
+The Next.js dev server is configured to proxy API requests from `/api/*` to `http://localhost:3000/*`, so make sure the Quart backend is running on port 3000.
 
 ## Building for Production
 

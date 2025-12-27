@@ -66,7 +66,7 @@ export default function CertificateChecker() {
             setCertData(transformedData);
         } catch (err) {
             if (err.message.includes('Failed to fetch')) {
-                setError(`Unable to access ${apiUrl}: ${err.message}. Make sure the backend server is running on port 5000.`);
+                setError(`Unable to access ${apiUrl}: ${err.message}. Make sure the backend server is running on port 3000.`);
             } else {
                 setError(`Failed to fetch certificate data: ${err.message}`);
             }

@@ -1,21 +1,13 @@
-import sys
 import os
-
-# Add cli directory to path to import shared modules
-sys.path.insert(
-    0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cli")
-)
-
-from quart import Quart, request, jsonify, Response, send_from_directory
 import asyncio
 import json
 from pathlib import Path
-from expiration import get_cert_expiration_no_raise, get_cert_expiration_many
-from schema import CertExpirationResult
+
+from quart import Quart, request, jsonify, Response, send_from_directory
+from core.schema import CertExpirationResult
+from core.expiration import get_cert_expiration_no_raise, get_cert_expiration_many
 
 app = Quart(__name__)
-
-# Configure Quart to use compact JSON formatting
 app.json.compact = True
 
 

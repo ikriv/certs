@@ -30,7 +30,7 @@ async def check_domains(domains: list[str]) -> None:
             data = result.data
             print(f"Certificate expires: {data.expiry_date.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             print(f"Time Remaining: {data.time_remaining_str}")
-            
+
             if data.is_expired:
                 print("STATUS: EXPIRED")
             elif data.days_remaining < 30:
@@ -55,32 +55,29 @@ Exit codes:
 Examples:
   python check_cert.py google.com github.com
   python check_cert.py example.com
-        """
+        """,
     )
-    
+
     parser.add_argument(
-        'domains',
-        nargs='+',
-        help='One or more domain names to check (e.g., google.com github.com)'
+        "domains",
+        nargs="+",
+        help="One or more domain names to check (e.g., google.com github.com)",
     )
-    
+
     parser.add_argument(
-        '--version',
-        action='version',
-        version='SSL Certificate Checker 2.0'
+        "--version", action="version", version="SSL Certificate Checker 2.0"
     )
-    
+
     args = parser.parse_args()
-    
-    # Validate domain format
+
     domains = []
     for domain in args.domains:
         domain = domain.strip().lower()
-        if not domain or '.' not in domain:
+        if not domain or "." not in domain:
             eprint(f"Error: Invalid domain name '{domain}'")
             sys.exit(400)
         domains.append(domain)
-    
+
     try:
         asyncio.run(check_domains(domains))
     except KeyboardInterrupt:

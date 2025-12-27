@@ -1,37 +1,39 @@
 # SSL Certificate Checker Server
 
-A Quart-based web server for checking SSL certificate expiration.
+## Structure
 
-## Prerequisites
-
-- Python 3.11+
-- pip
-
-## Dependencies
-
-This server requires `quart`. The core logic is in `cli/` (no external dependencies).
+```
+server/
+├── core/                    # Core library + CLI (zero deps)
+│   ├── schema.py
+│   ├── expiration.py
+│   ├── check_cert.py
+│   ├── check_cert_email.py
+│   └── config.example.ini
+├── app.py                   # Web server (requires quart)
+├── requirements.txt
+└── Dockerfile
+```
 
 ## Setup
 
 ```bash
-cd server
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-## Running
-
-```bash
 python app.py
 ```
 
-Server runs on `http://localhost:3000` (dev mode) or `http://localhost:5000` (Docker).
+## CLI Scripts (run from core/ directory)
 
-## API Endpoints
+```bash
+cd core
+python check_cert.py google.com
+python check_cert_email.py --config config.example.ini --dry-run google.com
+```
 
-- `GET /api/?domain=google.com` - Check single domain
-- `GET /api/?domains=google.com,github.com` - Check multiple domains
-- `GET /api/status` - Health check
+## API
 
-Set `Accept: application/x-ndjson` header for streaming results.
+- `GET /api/?domain=google.com`
+- `GET /api/?domains=google.com,github.com`
+- `GET /api/status`

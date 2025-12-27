@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """
 Email alert program to check SSL certificate expiration for multiple domains.
-Usage: python check_cert_email_alert.py <domain1> [domain2] [domain3] ...
-Example: python check_cert_email_alert.py google.com github.com example.com
+Usage: python check_cert_email.py --config config.ini <domain1> [domain2] ...
+Example: python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
+
+This script has no external dependencies - uses only Python standard library.
+Requires sendmail to be configured on the system for actual email delivery.
 """
 
 import asyncio
 import sys
-import argparse
 import os
+import argparse
 import subprocess
+import configparser
 from typing import List, Optional
-from dotenv import load_dotenv
-from get_cert_expiration import get_cert_expiration_many
-from schema import CertExpirationResult
+
+# Add parent directory to path to import certcore
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from certcore import get_cert_expiration_many, CertExpirationResult
 
 
 def eprint(*args, **kwargs):
@@ -21,7 +27,13 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-async def check_domains_and_send_alerts(domains: list[str], sender_email: str, recipient_email: str, warning_days: List[int], dry_run: bool = False) -> None:
+async def check_domains_and_send_alerts(
+    domains: list[str],
+    sender_email: str,
+    recipient_email: str,
+    warning_days: List[int],
+    dry_run: bool = False
+) -> None:
     """Check domains and send email alerts for expiring certificates."""
     results_to_alert: List[CertExpirationResult] = []
     
@@ -48,7 +60,12 @@ async def check_domains_and_send_alerts(domains: list[str], sender_email: str, r
         _send_email_alert(results_to_alert, sender_email, recipient_email, dry_run)
 
 
-def _send_email_alert(results_to_alert: List[CertExpirationResult], sender_email: str, recipient_email: str, dry_run: bool) -> None:
+def _send_email_alert(
+    results_to_alert: List[CertExpirationResult],
+    sender_email: str,
+    recipient_email: str,
+    dry_run: bool
+) -> None:
     """Send email alert for certificate expiration results."""
     # Create email content
     subject = f"SSL Certificate Alert - {len(results_to_alert)} domain(s)"
@@ -118,26 +135,6 @@ Content-Type: text/plain; charset=utf-8
         raise
 
 
-def load_env_file(config_file: str) -> None:
-    """
-    Load environment variables from a .env file using python-dotenv.
-    
-    Args:
-        config_file: Path to the .env file
-        
-    Raises:
-        FileNotFoundError: If the config file doesn't exist
-        ValueError: If there's an error loading the file
-    """
-    try:
-        # Load .env file, override=False means don't override existing env vars
-        success = load_dotenv(config_file, override=False)
-        if not success:
-            raise FileNotFoundError(f"Config file not found: {config_file}")
-    except Exception as e:
-        raise ValueError(f"Error loading config file '{config_file}': {e}")
-
-
 def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
     """Parse comma-separated warning days string into a list of integers."""
     if not warning_days_str:
@@ -150,27 +147,51 @@ def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
         raise ValueError(f"Invalid warning days format '{warning_days_str}': {e}")
 
 
-def get_email_config() -> tuple[str, str, List[int]]:
-    """Get email configuration from environment variables."""
-    # Get email configuration
-    email_from = os.getenv('CHECK_DOMAIN_EMAIL_FROM')
-    email_to = os.getenv('CHECK_DOMAIN_EMAIL_TO')
-    warning_days_str = os.getenv('CHECK_DOMAIN_WARNING_DAYS')
+def load_config(config_path: str) -> tuple[str, str, List[int]]:
+    """
+    Load email configuration from an INI file.
     
-    # Validate required email parameters
+    Expected format:
+        [email]
+        from = alerts@company.com
+        to = admin@company.com
+        
+        [alerts]
+        warning_days = 7,14,30
+    
+    Args:
+        config_path: Path to the INI configuration file
+        
+    Returns:
+        Tuple of (email_from, email_to, warning_days)
+        
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        ValueError: If required fields are missing or invalid
+    """
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    
+    # Get email section
+    if not config.has_section('email'):
+        raise ValueError("Config file missing [email] section")
+    
+    email_from = config.get('email', 'from', fallback=None)
+    email_to = config.get('email', 'to', fallback=None)
+    
     if not email_from:
-        raise ValueError("CHECK_DOMAIN_EMAIL_FROM environment variable is required")
+        raise ValueError("Config file missing 'from' in [email] section")
     if not email_to:
-        raise ValueError("CHECK_DOMAIN_EMAIL_TO environment variable is required")
+        raise ValueError("Config file missing 'to' in [email] section")
     
-    # Parse warning days
-    try:
-        warning_days = parse_warning_days(warning_days_str)
-    except ValueError as e:
-        raise ValueError(f"Invalid warning days configuration: {e}")
+    # Get warning days (optional)
+    warning_days_str = config.get('alerts', 'warning_days', fallback=None)
+    warning_days = parse_warning_days(warning_days_str)
     
     return email_from, email_to, warning_days
-
 
 
 def main() -> None:
@@ -179,10 +200,13 @@ def main() -> None:
         description="Check SSL certificate expiration and send email alerts",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Environment Variables:
-  CHECK_DOMAIN_EMAIL_FROM  Sender email address (required)
-  CHECK_DOMAIN_EMAIL_TO    Recipient email address (required)
-  CHECK_DOMAIN_WARNING_DAYS Comma-separated warning days (e.g., '7,14,30', default: '14,7,3,0')
+Configuration file format (INI):
+  [email]
+  from = alerts@company.com
+  to = admin@company.com
+  
+  [alerts]
+  warning_days = 7,14,30
 
 Exit codes:
     0: Success. This includes cases when some certificates are expired
@@ -191,17 +215,11 @@ Exit codes:
     500: Unexpected error
 
 Examples:
-  # Send email alerts
-  CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com python check_cert_email_alert.py google.com
+  # Using configuration file
+  python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
   
   # Dry-run mode (print email content instead of sending)
-  CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com python check_cert_email_alert.py --dry-run google.com
-  
-  # Using configuration file
-  python check_cert_email_alert.py --config config.env google.com github.com
-  
-  # Custom warning days
-  CHECK_DOMAIN_EMAIL_FROM=alerts@company.com CHECK_DOMAIN_EMAIL_TO=admin@company.com CHECK_DOMAIN_WARNING_DAYS=30,14,7,0 python check_cert_email_alert.py google.com
+  python check_cert_email.py --config config.ini --dry-run google.com
         """
     )
     
@@ -214,13 +232,14 @@ Examples:
     parser.add_argument(
         '--config',
         type=str,
-        help='Path to .env configuration file with environment variables'
+        required=True,
+        help='Path to INI configuration file (required)'
     )
     
     parser.add_argument(
         '--dry-run',
         action='store_true',
-        help='Force dry-run mode for email output'
+        help='Print email content instead of sending'
     )
     
     parser.add_argument(
@@ -231,13 +250,12 @@ Examples:
     
     args = parser.parse_args()
     
-    # Load configuration file if specified
-    if args.config:
-        try:
-            load_env_file(args.config)
-        except (FileNotFoundError, ValueError) as e:
-            eprint(f"Config file error: {e}")
-            sys.exit(400)
+    # Load configuration file
+    try:
+        email_from, email_to, warning_days = load_config(args.config)
+    except (FileNotFoundError, ValueError) as e:
+        eprint(f"Config error: {e}")
+        sys.exit(400)
     
     # Validate domain format (basic check)
     domains = []
@@ -247,13 +265,6 @@ Examples:
             eprint(f"Error: Invalid domain name '{domain}'. Please provide valid domain names (e.g., google.com)")
             sys.exit(400)
         domains.append(domain)
-    
-    # Get email configuration
-    try:
-        email_from, email_to, warning_days = get_email_config()
-    except ValueError as e:
-        eprint(f"Configuration error: {e}")
-        sys.exit(400)
     
     # Run the async check and send alerts
     try:
@@ -268,3 +279,4 @@ Examples:
 
 if __name__ == "__main__":
     main()
+

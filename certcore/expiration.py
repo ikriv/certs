@@ -1,9 +1,8 @@
-from dataclasses import dataclass
 import ssl
 import datetime
 import asyncio
 from typing import AsyncIterator, Sequence
-from schema import CertExpirationData, CertExpirationResult
+from .schema import CertExpirationData, CertExpirationResult
 
 def _format_time_remaining(days_remaining: int) -> str:
     """Format the remaining time in a human-readable format."""
@@ -189,5 +188,4 @@ async def get_cert_expiration_many(domains: Sequence[str]) -> AsyncIterator[Cert
     for task in asyncio.as_completed(tasks):
         result = await task
         yield result
-
 

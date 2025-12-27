@@ -26,4 +26,4 @@ class CertExpirationHandler(ABC):
 
     async def handleExpirationResul(self, _result: CertExpirationResult) -> None:
         pass
-   
+

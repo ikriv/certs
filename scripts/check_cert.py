@@ -3,12 +3,19 @@
 Console program to check SSL certificate expiration for multiple domains.
 Usage: python check_cert.py <domain1> [domain2] [domain3] ...
 Example: python check_cert.py google.com github.com example.com
+
+This script has no external dependencies - uses only Python standard library.
 """
 
 import asyncio
 import sys
+import os
 import argparse
-from get_cert_expiration import get_cert_expiration_many
+
+# Add parent directory to path to import certcore
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from certcore import get_cert_expiration_many
 
 
 def eprint(*args, **kwargs):
@@ -37,6 +44,7 @@ async def check_domains(domains: list[str]) -> None:
             else:
                 print("STATUS: VALID")
         print("")
+
 
 def main() -> None:
     """Main function to handle command line arguments and run the check."""
@@ -92,3 +100,4 @@ Examples:
 
 if __name__ == "__main__":
     main()
+

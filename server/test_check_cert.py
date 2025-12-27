@@ -3,6 +3,8 @@
 Unit tests for check_cert.py script using pytest.
 """
 
+import sys
+import os
 import datetime
 import io
 from unittest.mock import MagicMock, patch
@@ -10,9 +12,13 @@ from contextlib import redirect_stderr, redirect_stdout
 
 import pytest
 
+# Add parent and scripts directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
+
 # Import the functions we want to test
-from check_cert import check_domains, main
-from schema import CertExpirationResult, CertExpirationData
+from scripts.check_cert import check_domains, main
+from certcore import CertExpirationResult, CertExpirationData
 
 
 async def create_async_iter(results):
@@ -55,7 +61,7 @@ class TestCheckDomains:
         )
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_single_domain_success(self, mock_get_cert_expiration_many, valid_cert_data):
         """Test checking a single domain successfully."""
         # Setup mock
@@ -84,7 +90,7 @@ class TestCheckDomains:
             assert line in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_multiple_domains_success(self, mock_get_cert_expiration_many, valid_cert_data, expired_cert_data, expiring_soon_cert_data):
         """Test checking multiple domains successfully."""
         # Setup mock
@@ -111,7 +117,7 @@ class TestCheckDomains:
         assert "STATUS: EXPIRING SOON (less than 30 days)" in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_domain_not_found_error(self, mock_get_cert_expiration_many):
         """Test handling domain not found error."""
         # Setup mock
@@ -137,7 +143,7 @@ class TestCheckDomains:
             assert line in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_no_cert_data_error(self, mock_get_cert_expiration_many):
         """Test handling case where no certificate data is returned."""
         # Setup mock
@@ -163,7 +169,7 @@ class TestCheckDomains:
             assert line in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_mixed_success_and_error(self, mock_get_cert_expiration_many, valid_cert_data, expired_cert_data):
         """Test handling mix of successful and failed domain checks."""
         # Setup mock
@@ -194,7 +200,7 @@ class TestCheckDomains:
         assert "STATUS: EXPIRED" in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_expired_certificate(self, mock_get_cert_expiration_many, expired_cert_data):
         """Test handling expired certificate."""
         # Setup mock
@@ -215,7 +221,7 @@ class TestCheckDomains:
         assert "Time Remaining: EXPIRED" in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_expiring_soon_certificate(self, mock_get_cert_expiration_many, expiring_soon_cert_data):
         """Test handling certificate expiring soon."""
         # Setup mock
@@ -236,7 +242,7 @@ class TestCheckDomains:
         assert "Time Remaining: 15 days" in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_empty_domains_list(self, mock_get_cert_expiration_many):
         """Test handling empty domains list."""
         mock_get_cert_expiration_many.return_value = create_async_iter([])
@@ -250,7 +256,7 @@ class TestCheckDomains:
         assert output == ""
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_ssl_handshake_error(self, mock_get_cert_expiration_many):
         """Test handling SSL handshake error."""
         # Setup mock
@@ -271,7 +277,7 @@ class TestCheckDomains:
         assert "ERROR: SSL handshake failed: certificate verify failed" in output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_connection_timeout_error(self, mock_get_cert_expiration_many):
         """Test handling connection timeout error."""
         # Setup mock
@@ -293,8 +299,8 @@ class TestCheckDomains:
 
 
 class TestMainFunction:
-    @patch('check_cert.asyncio.run')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.asyncio.run')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_success_single_domain(self, mock_parse_args, mock_asyncio_run):
         """Test main function with single valid domain."""
         # Setup mock args
@@ -308,8 +314,8 @@ class TestMainFunction:
         # Verify asyncio.run was called
         mock_asyncio_run.assert_called_once()
 
-    @patch('check_cert.asyncio.run')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.asyncio.run')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_success_multiple_domains(self, mock_parse_args, mock_asyncio_run):
         """Test main function with multiple valid domains."""
         # Setup mock args
@@ -323,8 +329,8 @@ class TestMainFunction:
         # Verify asyncio.run was called
         mock_asyncio_run.assert_called_once()
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_invalid_domain_no_dot(self, mock_parse_args, mock_sys_exit):
         """Test main function with invalid domain (no dot)."""
         # Setup mock args
@@ -338,8 +344,8 @@ class TestMainFunction:
         # Verify sys.exit was called with error code 400
         mock_sys_exit.assert_called_once_with(400)
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_invalid_domain_empty(self, mock_parse_args, mock_sys_exit):
         """Test main function with empty domain."""
         # Setup mock args
@@ -357,9 +363,9 @@ class TestMainFunction:
         # Verify the exit code
         assert exc_info.value.code == 400
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.asyncio.run')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.asyncio.run')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_keyboard_interrupt(self, mock_parse_args, mock_asyncio_run, mock_sys_exit):
         """Test main function handling KeyboardInterrupt."""
         # Setup mock args
@@ -376,9 +382,9 @@ class TestMainFunction:
         # Verify sys.exit was called with error code 408
         mock_sys_exit.assert_called_once_with(408)
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.asyncio.run')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.asyncio.run')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_unexpected_exception(self, mock_parse_args, mock_asyncio_run, mock_sys_exit):
         """Test main function handling unexpected exception."""
         # Setup mock args
@@ -395,8 +401,8 @@ class TestMainFunction:
         # Verify sys.exit was called with error code 500
         mock_sys_exit.assert_called_once_with(500)
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_invalid_domain_whitespace_only(self, mock_parse_args, mock_sys_exit):
         """Test main function with whitespace-only domain."""
         # Setup mock args
@@ -414,9 +420,9 @@ class TestMainFunction:
         # Verify the exit code
         assert exc_info.value.code == 400
 
-    @patch('check_cert.sys.exit')
-    @patch('check_cert.asyncio.run')
-    @patch('check_cert.argparse.ArgumentParser.parse_args')
+    @patch('scripts.check_cert.sys.exit')
+    @patch('scripts.check_cert.asyncio.run')
+    @patch('scripts.check_cert.argparse.ArgumentParser.parse_args')
     def test_main_invalid_domain_multiple_dots(self, mock_parse_args, mock_asyncio_run, mock_sys_exit):
         """Test main function with domain that has multiple dots but is still invalid."""
         # Setup mock args
@@ -442,7 +448,7 @@ class TestIntegration:
     """Integration tests that test the full flow."""
     
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_full_flow_single_domain(self, mock_get_cert_expiration_many):
         """Test the complete flow for a single domain."""
         # Setup mock
@@ -475,7 +481,7 @@ STATUS: VALID
         assert output == expected_output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_full_flow_error_handling(self, mock_get_cert_expiration_many):
         """Test the complete flow with error handling."""
         # Setup mock with error
@@ -499,7 +505,7 @@ ERROR: SSL handshake failed
         assert output == expected_output
 
     @pytest.mark.asyncio
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_full_flow_mixed_results(self, mock_get_cert_expiration_many):
         """Test the complete flow with mixed success and error results."""
         # Setup mock with mixed results
@@ -550,7 +556,7 @@ class TestEdgeCases:
         (30, "STATUS: VALID"),
         (365, "STATUS: VALID"),
     ])
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_status_boundary_conditions(self, mock_get_cert_expiration_many, days_remaining, expected_status):
         """Test status determination at boundary conditions."""
         # Create cert data with specific days remaining
@@ -586,7 +592,7 @@ class TestEdgeCases:
         "Network is unreachable",
         "Connection refused",
     ])
-    @patch('check_cert.get_cert_expiration_many')
+    @patch('scripts.check_cert.get_cert_expiration_many')
     async def test_various_error_messages(self, mock_get_cert_expiration_many, error_message):
         """Test various error message formats."""
         mock_result = CertExpirationResult(

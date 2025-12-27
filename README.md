@@ -4,15 +4,44 @@ A full-stack application for checking SSL certificate expiration information. Bu
 
 ## Architecture
 
-- **Frontend**: Next.js (static export) - React-based UI
-- **Backend**: Quart (Python) - Serves static files and provides API endpoints
-- **Containerization**: Docker Compose for easy deployment
+- **certcore/**: Core library (zero external dependencies)
+- **scripts/**: Standalone CLI scripts (zero external dependencies)
+- **server/**: Web server (requires quart)
+- **frontend/**: Next.js (static export) - React-based UI
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - Node.js 18+ and npm (for building frontend)
-- Python 3.11+ (for local development)
+- Python 3.11+ (for local development and scripts)
+
+## Project Structure
+
+```
+certs_new/
+├── certcore/                # Core library (zero deps)
+│   ├── __init__.py
+│   ├── expiration.py        # Certificate checking logic
+│   └── schema.py            # Data classes
+│
+├── scripts/                 # Standalone scripts (zero deps)
+│   ├── check_cert.py        # Console checker
+│   ├── check_cert_email.py  # Email alert for cron
+│   └── config.example.ini   # Example config file
+│
+├── server/                  # Web server (requires quart)
+│   ├── app.py
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── frontend/                # Next.js frontend
+│   ├── src/
+│   ├── out/                 # Static export (generated)
+│   └── package.json
+│
+├── docker-compose.yml
+└── README.md
+```
 
 ## Quick Start
 
@@ -45,6 +74,54 @@ The application will be available at `http://localhost:5000`.
 - **API Endpoint**: `http://localhost:5000/api/?domain=google.com`
 - **Health Check**: `http://localhost:5000/api/status`
 
+## Standalone Scripts (Zero Dependencies)
+
+The scripts in `scripts/` directory require only Python 3.11+ standard library.
+
+### Console Script
+
+Check certificate expiration from the command line:
+
+```bash
+cd scripts
+python check_cert.py google.com github.com example.com
+```
+
+### Email Alert Script (for cron)
+
+Send email alerts for expiring certificates:
+
+```bash
+# Create config file from example
+cp scripts/config.example.ini /etc/cert_alert.ini
+# Edit with your email settings
+nano /etc/cert_alert.ini
+
+# Run the script
+python scripts/check_cert_email.py --config /etc/cert_alert.ini google.com github.com
+
+# Dry run (print email instead of sending)
+python scripts/check_cert_email.py --config /etc/cert_alert.ini --dry-run google.com
+```
+
+**Configuration file format (INI):**
+
+```ini
+[email]
+from = alerts@company.com
+to = admin@company.com
+
+[alerts]
+warning_days = 7,14,30
+```
+
+**Cron example:**
+
+```bash
+# Check certificates daily at 8 AM
+0 8 * * * /usr/bin/python3 /path/to/scripts/check_cert_email.py --config /etc/cert_alert.ini google.com github.com
+```
+
 ## Development
 
 ### Development Mode (Separate Frontend and Backend)
@@ -66,7 +143,7 @@ cd server
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python check_cert_server.py
+python app.py
 ```
 
 The backend runs on `http://localhost:3000` (default port).
@@ -126,22 +203,6 @@ docker-compose down
 docker-compose up --build
 ```
 
-## Project Structure
-
-```
-certs_new/
-├── frontend/          # Next.js frontend application
-│   ├── src/
-│   ├── out/          # Static export output (generated)
-│   └── package.json
-├── server/           # Quart backend
-│   ├── check_cert_server.py
-│   ├── requirements.txt
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
-```
-
 ## API Usage
 
 ### Check Single Domain
@@ -196,6 +257,14 @@ location / {
 }
 ```
 
+## Dependencies Summary
+
+| Component | External Dependencies |
+|-----------|----------------------|
+| `certcore/` | None (stdlib only) |
+| `scripts/` | None (stdlib only) |
+| `server/` | quart |
+
 ## Troubleshooting
 
 ### Frontend not loading
@@ -217,4 +286,3 @@ location / {
 ## License
 
 [Add your license here]
-

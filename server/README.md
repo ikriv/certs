@@ -4,8 +4,12 @@ A Quart-based web server for checking SSL certificate expiration information for
 
 ## Prerequisites
 
-- Python 3.7 or higher
+- Python 3.11 or higher
 - pip (Python package manager)
+
+## Dependencies
+
+This server requires `quart`. The core certificate checking logic is in `certcore/` (no external dependencies).
 
 ## Setup
 
@@ -42,7 +46,7 @@ pip install -r requirements.txt
 
 Start the server locally:
 ```bash
-python check_cert_server.py
+python app.py
 ```
 
 The server will start on `http://0.0.0.0:3000` (accessible at `http://localhost:3000`) in development mode.
@@ -76,4 +80,3 @@ Returns server status information.
 ## Development
 
 The server runs in debug mode when started locally, which enables auto-reload on code changes.
-

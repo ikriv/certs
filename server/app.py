@@ -1,10 +1,14 @@
+import sys
+import os
+
+# Add parent directory to path to import certcore
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from quart import Quart, request, jsonify, Response, send_from_directory
 import asyncio
 import json
-import os
 from pathlib import Path
-from get_cert_expiration import get_cert_expiration_no_raise, get_cert_expiration_many
-from schema import CertExpirationResult
+from certcore import get_cert_expiration_no_raise, get_cert_expiration_many, CertExpirationResult
 
 app = Quart(__name__)
 
@@ -220,7 +224,6 @@ if __name__ == "__main__":
     # This is used when running locally only
     # Backend runs on port 3000 in dev mode
     # In Docker, it runs on port 5000 (serves both frontend and backend)
-    import os
-
     port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port, debug=True)
+

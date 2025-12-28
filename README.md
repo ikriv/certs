@@ -67,7 +67,15 @@ Add (adjust path to your installation):
 
 The web dashboard runs as a Docker container. Apache or Nginx acts as a reverse proxy, forwarding requests to the container.
 
-### 1. Start the Docker Container
+### 1. Configure Domains
+
+Create `frontend/.env.local` and set the domains to monitor (semicolon-separated):
+
+```bash
+NEXT_PUBLIC_DOMAINS_TO_CHECK=yourdomain.com;api.yourdomain.com;mail.yourdomain.com
+```
+
+### 2. Start the Docker Container
 
 ```bash
 # Build frontend first
@@ -79,7 +87,7 @@ docker-compose up -d
 
 The container runs on port 5000.
 
-### 2. Configure Reverse Proxy
+### 3. Configure Reverse Proxy
 
 Add to your existing site configuration to serve the dashboard at `/certs/`:
 

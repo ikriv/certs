@@ -166,7 +166,14 @@ def parse_warning_days(warning_days_str: Optional[str]) -> List[int]:
         raise ValueError(f"Invalid warning days format '{warning_days_str}': {e}")
 
 
-def load_config(config_path: str) -> tuple[str, str, List[int]]:
+def parse_domains(domains_str: Optional[str]) -> List[str]:
+    """Parse comma-separated domains string into a list."""
+    if not domains_str:
+        return []
+    return [d.strip().lower() for d in domains_str.split(",") if d.strip()]
+
+
+def load_config(config_path: str) -> tuple[str, str, List[int], List[str]]:
     """Load email configuration from an INI file."""
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -188,7 +195,10 @@ def load_config(config_path: str) -> tuple[str, str, List[int]]:
     warning_days_str = config.get("alerts", "warning_days", fallback=None)
     warning_days = parse_warning_days(warning_days_str)
 
-    return email_from, email_to, warning_days
+    domains_str = config.get("domains", "list", fallback=None)
+    domains = parse_domains(domains_str)
+
+    return email_from, email_to, warning_days, domains
 
 
 def main() -> None:
@@ -205,6 +215,9 @@ Configuration file format (INI):
   [alerts]
   warning_days = 7,14,30
 
+  [domains]
+  list = example.com, api.example.com
+
 Exit codes:
     0: Success (includes cases when some certificates are expired)
     400: Invalid parameters or config
@@ -212,13 +225,18 @@ Exit codes:
     500: Unexpected error
 
 Examples:
-  python check_cert_email.py --config /etc/cert_alert.ini google.com github.com
-  python check_cert_email.py --config config.ini --dry-run google.com
-  python check_cert_email.py --config config.ini --force google.com github.com
+  python check_cert_email.py --config /etc/cert_alert.ini
+  python check_cert_email.py --config config.ini --dry-run
+  python check_cert_email.py --config config.ini --force
+  python check_cert_email.py --config config.ini google.com github.com  # override config domains
         """,
     )
 
-    parser.add_argument("domains", nargs="+", help="One or more domain names to check")
+    parser.add_argument(
+        "domains",
+        nargs="*",
+        help="Domain names to check (overrides config if provided)",
+    )
 
     parser.add_argument(
         "--config",
@@ -244,13 +262,20 @@ Examples:
     args = parser.parse_args()
 
     try:
-        email_from, email_to, warning_days = load_config(args.config)
+        email_from, email_to, warning_days, config_domains = load_config(args.config)
     except (FileNotFoundError, ValueError) as e:
         eprint(f"Config error: {e}")
         sys.exit(400)
 
+    # Use command-line domains if provided, otherwise use config domains
+    raw_domains = args.domains if args.domains else config_domains
+
+    if not raw_domains:
+        eprint("Error: No domains specified (provide via command line or config file)")
+        sys.exit(400)
+
     domains = []
-    for domain in args.domains:
+    for domain in raw_domains:
         domain = domain.strip().lower()
         if not domain or "." not in domain:
             eprint(f"Error: Invalid domain name '{domain}'")

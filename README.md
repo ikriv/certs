@@ -34,6 +34,9 @@ to = admin@yourdomain.com
 [alerts]
 # Send alerts when certificate expires in these many days
 warning_days = 30,14,7,1
+
+[domains]
+list = yourdomain.com, api.yourdomain.com, mail.yourdomain.com
 ```
 
 ### 2. Test the Script
@@ -42,10 +45,10 @@ warning_days = 30,14,7,1
 cd /path/to/server/core
 
 # Preview email content without sending
-python check_cert_email.py --config /etc/ssl-cert-alert.ini --dry-run yourdomain.com
+python check_cert_email.py --config /etc/ssl-cert-alert.ini --dry-run
 
 # Send a summary email for all domains (regardless of expiration status)
-python check_cert_email.py --config /etc/ssl-cert-alert.ini --force yourdomain.com
+python check_cert_email.py --config /etc/ssl-cert-alert.ini --force
 ```
 
 ### 3. Add to Cron
@@ -58,7 +61,7 @@ Add:
 
 ```cron
 # Check SSL certificates daily at 8 AM
-0 8 * * * cd /path/to/server/core && python check_cert_email.py --config /etc/ssl-cert-alert.ini yourdomain.com anotherdomain.com
+0 8 * * * cd /path/to/server/core && python check_cert_email.py --config /etc/ssl-cert-alert.ini
 ```
 
 **Note:** Requires `sendmail` configured on the system.

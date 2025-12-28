@@ -21,10 +21,10 @@ python check_cert.py google.com github.com example.com
 ### 1. Create Configuration File
 
 ```bash
-cp server/core/config.example.ini /etc/ssl-cert-alert.ini
+cp server/core/config.example.ini server/core/config.ini
 ```
 
-Edit `/etc/ssl-cert-alert.ini`:
+Edit `server/core/config.ini`:
 
 ```ini
 [email]
@@ -42,13 +42,13 @@ list = yourdomain.com, api.yourdomain.com, mail.yourdomain.com
 ### 2. Test the Script
 
 ```bash
-cd /path/to/server/core
+cd server/core
 
 # Preview email content without sending
-python check_cert_email.py --config /etc/ssl-cert-alert.ini --dry-run
+python check_cert_email.py --config config.ini --dry-run
 
 # Send a summary email for all domains (regardless of expiration status)
-python check_cert_email.py --config /etc/ssl-cert-alert.ini --force
+python check_cert_email.py --config config.ini --force
 ```
 
 ### 3. Add to Cron
@@ -57,11 +57,11 @@ python check_cert_email.py --config /etc/ssl-cert-alert.ini --force
 crontab -e
 ```
 
-Add:
+Add (adjust path to your installation):
 
 ```cron
 # Check SSL certificates daily at 8 AM
-0 8 * * * cd /path/to/server/core && python check_cert_email.py --config /etc/ssl-cert-alert.ini
+0 8 * * * cd /path/to/server/core && python check_cert_email.py --config config.ini
 ```
 
 **Note:** Requires `sendmail` configured on the system.

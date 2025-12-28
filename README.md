@@ -75,6 +75,8 @@ Create `frontend/.env.local` and set the domains to monitor (semicolon-separated
 NEXT_PUBLIC_DOMAINS_TO_CHECK=yourdomain.com;api.yourdomain.com;mail.yourdomain.com
 ```
 
+**Note:** This variable is embedded at build time. If you change it later, you must rebuild the frontend (`cd frontend && npm run build`) and restart Docker.
+
 ### 2. Start the Docker Container
 
 ```bash

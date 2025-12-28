@@ -40,7 +40,12 @@ warning_days = 30,14,7,1
 
 ```bash
 cd /path/to/server/core
+
+# Preview email content without sending
 python check_cert_email.py --config /etc/ssl-cert-alert.ini --dry-run yourdomain.com
+
+# Send a summary email for all domains (regardless of expiration status)
+python check_cert_email.py --config /etc/ssl-cert-alert.ini --force yourdomain.com
 ```
 
 ### 3. Add to Cron

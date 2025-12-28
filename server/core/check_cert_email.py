@@ -8,15 +8,20 @@ No external dependencies - uses only Python standard library.
 Requires sendmail to be configured on the system for actual email delivery.
 """
 
-import asyncio
 import sys
+from pathlib import Path
+
+# Allow running as a script from any directory
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import asyncio
 import argparse
 import subprocess
 import configparser
 import os
 from typing import List, Optional
-from expiration import get_cert_expiration_many
-from schema import CertExpirationResult
+from core.expiration import get_cert_expiration_many
+from core.schema import CertExpirationResult
 
 
 def eprint(*args, **kwargs):

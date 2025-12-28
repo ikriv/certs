@@ -7,10 +7,15 @@ Example: python check_cert.py google.com github.com example.com
 No external dependencies - uses only Python standard library.
 """
 
-import asyncio
 import sys
+from pathlib import Path
+
+# Allow running as a script from any directory
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import asyncio
 import argparse
-from expiration import get_cert_expiration_many
+from core.expiration import get_cert_expiration_many
 
 
 def eprint(*args, **kwargs):

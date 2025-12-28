@@ -9,7 +9,7 @@
 
 ## Quick Start: Manual Check
 
-Check certificate expiration from the command line (no dependencies required):
+Check certificate expiration from the command line (no dependencies required). This should work on any operating system that supports Python. Don't forget to use backslash instead of slash on Windows.
 
 ```bash
 cd server/core
@@ -17,6 +17,8 @@ python check_cert.py google.com github.com example.com
 ```
 
 ## Cron Setup: Email Alerts
+
+`check_sert_email.py` script sends expiration alerts via email. It relies on `/usr/bin/sendmail` and thus would work only on Linux and perhaps Mac if `sendmail` is installed. There is no `sendmail` on Windows. You can run this script periodically (e.g. daily) using `cron`, again, only on Linux.
 
 ### 1. Create Configuration File
 
@@ -41,14 +43,11 @@ list = yourdomain.com, api.yourdomain.com, mail.yourdomain.com
 
 ### 2. Test the Script
 
+We provide a script named `cronjob` inside `server/core` that invokes `check_cert_email.py`. You can temporarily add `--force` to make it send an email every time it is run. It redirects the output to `check_cert_email.log`.
+
 ```bash
 cd server/core
-
-# Preview email content without sending
-python check_cert_email.py --config config.ini --dry-run
-
-# Send a summary email for all domains (regardless of expiration status)
-python check_cert_email.py --config config.ini --force
+./cronjob
 ```
 
 ### 3. Add to Cron
@@ -61,10 +60,8 @@ Add (adjust path to your installation):
 
 ```cron
 # Check SSL certificates daily at 8 AM
-0 8 * * * cd /path/to/server/core && python check_cert_email.py --config config.ini
+0 8 * * * /path/to/server/core/cronjob
 ```
-
-**Note:** Requires `sendmail` configured on the system.
 
 ## Web Dashboard Deployment
 

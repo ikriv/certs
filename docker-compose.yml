@@ -7,10 +7,18 @@ services:
       dockerfile: Dockerfile
     container_name: certs-quart
     ports:
-      - "5000:5000"
+      - "5000:5000" # not needed if you are using shared network
     volumes:
       - ./frontend/out:/app/static:ro
     environment:
       - PYTHONUNBUFFERED=1
       - PORT=5000
     restart: unless-stopped
+
+# uncomment the block below if your web server runs in a docker container as well
+#    networks:
+#      - shared-network
+#
+#networks:
+#  shared-network:
+#    external: true   

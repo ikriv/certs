@@ -39,7 +39,8 @@ export default function CertificateChecker() {
             ? `domain=${encodeURIComponent(domainsToCheck[0])}`
             : `domains=${encodeURIComponent(domainsToCheck.join(','))}`;
 
-        const apiUrl = `/api/?${queryParam}`;
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const apiUrl = `${basePath}/api/?${queryParam}`;
 
         try {
             const response = await fetch(apiUrl);

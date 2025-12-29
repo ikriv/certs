@@ -2,8 +2,8 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-    // If deploying under a subpath (e.g., /certs)
-    // basePath: '/certs',
+    // Read basePath from env var (e.g., '/certs'). Empty string = no basePath.
+    basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
 
     // Enable static export only for production builds (not dev mode)
     // This allows rewrites to work in dev mode

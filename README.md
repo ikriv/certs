@@ -2,12 +2,15 @@
 
 ## Motivation
 
-[Let's Encrypt is ending support for expiration notification emails](https://letsencrypt.org/2025/01/22/ending-expiration-emails) on June 4, 2025. This project provides:
+[Let's Encrypt is ending support for expiration notification emails](https://letsencrypt.org/2025/01/22/ending-expiration-emails) on June 4, 2025. I vibe-coded the solution to this problem relatively quick, but I only got to "productionize" it now. This project provides:
+
 - A command-line tool to check certificate expiration
 - An email alert script for cron-based monitoring  
 - A web dashboard for visual monitoring
 
-## Quick Start: Manual Check
+![dashboard](dashboard.png)
+
+## Quick Start: Manual Cert Check
 
 Check certificate expiration from the command line (no dependencies required). This should work on any operating system that supports Python. Don't forget to use backslash instead of slash on Windows.
 
@@ -67,15 +70,21 @@ Add (adjust path to your installation):
 
 The web dashboard runs as a Docker container. Apache or Nginx acts as a reverse proxy, forwarding requests to the container.
 
-### 1. Configure Domains
+### 1. Configure Environment
 
-Create `frontend/.env.local` and set the domains to monitor (semicolon-separated):
+Create `frontend/.env.local` with the following settings:
 
 ```bash
+# Base path for the dashboard URL (e.g., /certs for https://yourdomain.com/certs/)
+NEXT_PUBLIC_BASE_PATH=/certs
+
+# Domains to monitor (semicolon-separated)
 NEXT_PUBLIC_DOMAINS_TO_CHECK=yourdomain.com;api.yourdomain.com;mail.yourdomain.com
 ```
 
-**Note:** This variable is embedded at build time. If you change it later, you must rebuild the frontend (`cd frontend && npm run build`) and restart Docker.
+**Important:** `NEXT_PUBLIC_BASE_PATH` must match the path in your reverse proxy configuration. If you serve the dashboard at `/certs/`, set `NEXT_PUBLIC_BASE_PATH=/certs`. For root deployment, leave it empty or omit it.
+
+**Note:** These variables are embedded at build time. If you change them later, you must rebuild the frontend (`cd frontend && npm run build`) and restart Docker.
 
 ### 2. Start the Docker Container
 
@@ -89,19 +98,22 @@ docker-compose up -d
 
 The container runs on port 5000.
 
-### 3. Configure Reverse Proxy
+### 3. Configure Reverse Proxy for Apache
 
-Add to your existing site configuration to serve the dashboard at `/certs/`:
+Configure your web server to forward requests to the Docker container. Below is the guide for Apache, since this is the web server I use. If you use a different web server, refer to its do documentation. If your web server runs in a docker container, the parts related to shared network are still applicable.
 
-#### Apache
+#### Prerequisites
 
-Enable required modules:
+Apache requires `mod_proxy` and `mod_proxy_http` modules. Enable them with:
 
 ```bash
 a2enmod proxy proxy_http
+systemctl restart apache2
 ```
 
-Add to your Apache virtual host:
+#### Configuring Standalone Apache
+
+If Apache runs at the system level, i.e. not in a Docker container, add the following to your Apache virtual host (the path must match `NEXT_PUBLIC_BASE_PATH`):
 
 ```apache
 # SSL Certificate Checker at /certs/
@@ -109,22 +121,51 @@ ProxyPass /certs/ http://127.0.0.1:5000/
 ProxyPassReverse /certs/ http://127.0.0.1:5000/
 ```
 
-#### Nginx
+#### Configuring Apache in a Docker Container
 
-Add to your server block:
+If Apache runs in a Docker container, you cannot use `127.0.0.1` since Apache and the cert-checker are in separate containers. Instead, create a shared Docker network.
 
-```nginx
-# SSL Certificate Checker at /certs/
-location /certs/ {
-    proxy_pass http://127.0.0.1:5000/;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
+In cert-ui `docker-compose.yml`, uncomment the networks block:
+
+```
+services:
+  backend:
+    ...
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    name: shared-network   
 ```
 
-The dashboard will be available at `https://yourdomain.com/certs/`.
+You can also comment out the "ports" block, since we no longer need to export port 5000 to the hots computer.
+
+Add similar code to your Apache's `docker-compose.yml`. Assuming Apache runs in a container named "webserver", it would look like this:
+
+```
+services:
+  webserver:
+     ...
+     networks:
+       - default
+       - shared-network
+networks:
+  shared-network:
+    name: shared-network
+
+```
+
+After these changes, Apache "webserver" container and cert checker "certs-ui" container run on the same network and can communicate between each other by name.
+
+Add the following to your Apache virtual web host configuration:
+
+```bash
+ProxyPass /certs/ http://certs-ui:5000/
+ProxyPassReverse /certs/ http://certs-u:5000/
+```
+
+After these steps, the dashboard will be available at `https://yourdomain.com/certs/`.
 
 ## Development Setup
 
